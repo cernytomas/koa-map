@@ -1,0 +1,12 @@
+{
+  "name": "koa-map",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "cernytomas",
+  "license": "ISC",
+  "homepage": "https://github.com/cernytomas/koa-map"
+}
