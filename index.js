@@ -4,12 +4,12 @@ var co = require('co');
 module.exports.mapLimit = function (array, numberOfProcesses, generator) {
   return new Promise(
     function runIt(resolveFirst, rejectFirst) {
+      if (!Array.isArray(array) || array.length === 0 ) {
+        return resolveFirst(array);
+      }
       var i = 0, l = array.length, results = [], runningProcesses = 0;
       if (numberOfProcesses < 1) {
         return rejectFirst(new Error('Number of processes has to be positive number'));
-      }
-      if (l === 0 || !Array.isArray(array)) {
-        return resolveFirst(array);
       }
 
       var process = new Promise(
@@ -69,12 +69,12 @@ module.exports.mapLimit = function (array, numberOfProcesses, generator) {
 module.exports.mapDelay = function (array, delay, generator) {
   return new Promise(
     function runIt(resolveFirst, rejectFirst) {
+      if (!Array.isArray(array) || array.length === 0 ) {
+        return resolveFirst(array);
+      }
       var i = 0, l = array.length, results = [];
       if (delay < 0) {
         return rejectFirst(new Error('Number of processes has to be positive number'));
-      }
-      if (l === 0 || !Array.isArray(array)) {
-        return resolveFirst(array);
       }
 
       var process = new Promise(

@@ -37,6 +37,12 @@ co(function * () {
 });
 
 co(function * () {
+  let res = yield helpers.mapLimit(undefined, 3, timeout);
+  console.log('exit', res);
+});
+
+
+co(function * () {
   try {
     let res = yield helpers.mapLimit([], 0, timeout);
     console.log('exit', res);
