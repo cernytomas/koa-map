@@ -2,61 +2,51 @@
 var co = require('co');
 
 module.exports.mapLimit = function (array, numberOfProcesses, generator) {
+  /** If wrong number of processes reject it */
+  if (numberOfProcesses < 1) {
+    return Promise.reject(new Error('Number of processes has to be positive number'));
+  }
+  /** If not array or empty array resolve it */
+  if (!Array.isArray(array)) {
+    return Promise.reject(new Error('No array passed'));
+  }
+  if (array.length === 0) {
+    return Promise.resolve(array);
+  }
+
+  var results = [], runningProcesses = 0, keys = array.map((item, key) => {
+    return key;
+  });
+
   return new Promise(
-    function runIt(resolveFirst, rejectFirst) {
-      if (!Array.isArray(array) || array.length === 0 ) {
-        return resolveFirst(array);
-      }
-      var i = 0, l = array.length, results = [], runningProcesses = 0;
-      if (numberOfProcesses < 1) {
-        return rejectFirst(new Error('Number of processes has to be positive number'));
-      }
-
-      var process = new Promise(
-        /** recursive function inside Promise */
-        function runProcess(resolve, reject) {
-          if (i < l) {
-            /** asynchronous iteration over maximum empty workers */
-            let r = range(i, i + numberOfProcesses - runningProcesses, l);
-            r.forEach((iterator) => {
-              runningProcesses++;
-              /** increment array index iterator */
-              i++;
-              /** run generator */
-              co(generator(array[iterator], iterator, array))
-                .then((res) => {
-                  /** save generator's result to results array under it's original index */
-                  results[iterator] = res;
-                  /** decrement number of running processes */
-                  runningProcesses--;
-                  /** if there is no more running process and it has already iterated array length
-                   *  then resolve it
-                   *  or recurse */
-                  if (runningProcesses === 0 && i === l) {
-                    resolve(results)
-                  } else {
-                    runProcess(resolve, reject)
-                  }
-                })
-                .catch((rej) => {
-                  results[i] = {error: rej};
-                  runningProcesses--;
-                  if (runningProcesses === 0 && i === l) {
-                    resolve(results)
-                  } else {
-                    runProcess(resolve, reject)
-                  }
-                })
+    /** recursive function inside Promise */
+    function runProcess(resolve, reject) {
+      if (keys.length > 0) {
+        /** asynchronous iteration over maximum empty workers */
+        keys.splice(0, numberOfProcesses - runningProcesses).forEach((key) => {
+          runningProcesses++;
+          /** run generator */
+          co(generator(array[key], key, array))
+            .then((res) => {
+              /** save generator's result to results array under it's original index */
+              results[key] = res;
+              /** decrement number of running processes */
+              runningProcesses--;
+              runProcess(resolve, reject)
             })
-          }
-        }
-      );
-
-      process.then((res) => {
-        return resolveFirst(res)
-      });
+            .catch((rej) => {
+              results[key] = {error: rej};
+              runningProcesses--;
+              runProcess(resolve, reject)
+            })
+        })
+      } else if (runningProcesses === 0 && keys.length === 0) {
+        /** if there is no more running process and it has already iterated array length
+         *  then resolve it */
+        resolve(results);
+      }
     }
-  )
+  );
 };
 
 /**
@@ -67,64 +57,53 @@ module.exports.mapLimit = function (array, numberOfProcesses, generator) {
  * @returns {Promise}
  */
 module.exports.mapDelay = function (array, delay, generator) {
-  return new Promise(
-    function runIt(resolveFirst, rejectFirst) {
-      if (!Array.isArray(array) || array.length === 0 ) {
-        return resolveFirst(array);
-      }
-      var i = 0, l = array.length, results = [];
-      if (delay < 0) {
-        return rejectFirst(new Error('Number of processes has to be positive number'));
-      }
-
-      var process = new Promise(
-        /** recursive function inside Promise */
-        function runProcess(resolve, reject) {
-          if (i < l) {
-            /** run generator */
-            co(generator(array[i], i, array))
-              .then((res) => {
-                /** save generator's result to results array under it's original index */
-                results[i] = res;
-                i++;
-                /** if there is no more running process and it has already iterated array length
-                 *  then resolve it
-                 *  or recurse */
-                if (i === l) {
-                  resolve(results)
-                } else {
-                  setTimeout(function () {
-                    runProcess(resolve, reject)
-                  }, delay)
-                }
-              })
-              .catch((rej) => {
-                results[i] = {error: rej};
-                i++;
-                if (i === l) {
-                  resolve(results)
-                } else {
-                  setTimeout(function () {
-                    runProcess(resolve, reject)
-                  }, delay)
-                }
-              })
-          }
-        }
-      );
-
-      process.then((res) => {
-        return resolveFirst(res)
-      });
-    }
-  )
-};
-
-function range (min, max, arrayLength) {
-  let arr = [];
-  max = max <= arrayLength ? max : arrayLength;
-  for (min; min < max; min++) {
-    arr.push(min);
+  /** If wrong number of processes reject it */
+  if (delay < 0) {
+    return Promise.reject(new Error('Delay has to be positive number or zero'));
   }
-  return arr;
-}
+  /** If not array or empty array resolve it */
+  if (!Array.isArray(array)) {
+    return Promise.reject(new Error('No array passed'));
+  }
+  if (array.length === 0) {
+    return Promise.resolve(array);
+  }
+
+  var results = [], keys = array.map((item, key) => {
+    return key;
+  });
+  return new Promise(
+    /** recursive function inside Promise */
+    function runProcess(resolve, reject) {
+      if (keys.length > 0) {
+        /** run generator */
+        let key = keys.splice(0, 1)[0];
+        co(generator(array[key], key, array))
+          .then((res) => {
+            /** save generator's result to results array under it's original index */
+            results[key] = res;
+            /** if it has already iterated array length
+             *  then resolve it
+             *  or recurse */
+            if (keys.length === 0) {
+              resolve(results)
+            } else {
+              setTimeout(function () {
+                runProcess(resolve, reject)
+              }, delay)
+            }
+          })
+          .catch((rej) => {
+            results[key] = {error: rej};
+            if (keys.length === 0) {
+              resolve(results)
+            } else {
+              setTimeout(function () {
+                runProcess(resolve, reject)
+              }, delay)
+            }
+          })
+      }
+    }
+  );
+};
